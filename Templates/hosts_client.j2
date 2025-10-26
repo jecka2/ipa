@@ -1,0 +1,11 @@
+# Loopback entries; do not change.
+# For historical reasons, localhost precedes localhost.localdomain:
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+# See hosts(5) for proper format and other examples:
+# 192.168.1.10 foo.example.org foo
+# 192.168.1.13 bar.example.org bar
+192.168.57.2 server.otus.lab  server
+127.0.1.1 {{ ansible_facts['hostname'] }}.otus.lab {{ ansible_facts['hostname'] }}
+192.168.57.3 client1.otus.lab client1
+192.168.57.4 client2.otus.lab client2

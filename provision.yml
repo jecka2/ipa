@@ -1,0 +1,89 @@
+- name: Base set up
+  hosts: all
+  vars_files:
+    - Inventory/vars/secret.yml
+  become: true
+  tasks:
+
+  - name: Copy hosts to server
+    ansible.builtin.copy:
+      backup: true
+      dest: /etc/hosts
+      group: root
+      mode: "0755"
+      owner: root
+      remote_src: false
+      src: "Templates/hosts_server.j2"
+    when: (ansible_hostname == "server")
+
+  - name: Set up name
+    ansible.builtin.hostname:
+       name: server.otus.lab
+    when: (ansible_hostname == "server")
+
+  - name: Restart service network
+    ansible.builtin.systemd:
+     name : NetworkManager 
+     state: restarted  
+    when: (ansible_hostname == "server")
+    
+  - name: install ipa server software
+    yum:
+      name:
+        - ipa-server
+        - ipa-admintools
+        - freeipa-server-dns
+        - nano
+        - sudo
+      state: present
+      update_cache: true
+    when: (ansible_hostname == "server")
+ 
+  - name: install FreeIPA server
+    shell: |
+      ipa-server-install --setup-dns --forwarder=8.8.8.8 --auto-reverse --hostname=$(hostname -f)  --netbios-name="OTUSLAB" --no-ntp --domain="otus.lab" --realm="OTUS.LAB" --admin-password={{ admin_password }}  --ds-password={{ directory_service_password }} -U --skip-mem-check
+    when: (ansible_hostname == "server")
+  
+  - name: install ipa client
+    yum:
+      name: 
+        - nano
+        - ipa-client
+      state: present
+      update_cache: true
+    when: (ansible_hostname == "client1") or
+          (ansible_hostname == "client2")
+
+  - name: Add  DNS server
+    ansible.builtin.lineinfile:
+     path: "/etc/NetworkManager/system-connections/enp0s8.nmconnection"
+     insertafter: "^gateway=192.168.57.1$"
+     line: "dns=192.168.57.2"
+     state: present 
+    when: (ansible_hostname == "client1") or
+          (ansible_hostname == "client2")
+
+  - name: Change hostname clients
+    ansible.builtin.copy:
+      backup: true
+      dest: /etc/hosts
+      group: root
+      mode: "0755"
+      owner: root
+      remote_src: false
+      src: "Templates/hosts_client.j2"
+    when: (ansible_hostname == "client1") or
+           (ansible_hostname == "client2")
+
+  - name: Restart service network on hosts
+    ansible.builtin.systemd:
+     name : NetworkManager
+     state: restarted
+    when: (ansible_hostname == "client1") or
+          (ansible_hostname == "client2")
+
+  - name: Запуск установки FreeIPA на клиенте
+    shell: |
+      ipa-client-install -U -U -p admin -w {{ admin_password }}  --domain="otus.lab" --server="server.otus.lab" --realm="OTUS.LAB" --mkhomedir
+    when: (ansible_hostname == "client1") or
+         (ansible_hostname == "client2")
